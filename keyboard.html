@@ -1,0 +1,495 @@
+<!-- ====================================================================
+     TECLADO NUMÉRICO PROFESIONAL CON ANIMACIONES
+     - Lógica por COLUMNAS (no filas)
+     - Efecto pressed + tachado diagonal + borde brillante
+     - Sobrescritura y borrado al re-click
+     ==================================================================== -->
+
+<style>
+/* ============================================
+   OCULTAR CAMPO DE RESPUESTA DE MOODLE
+   ============================================ */
+.que.shortanswer .answer,
+.que.shortanswer .ablock,
+.que .answer input[type="text"],
+input[name*="answer"]:not(#keypad-hidden-input) {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* ============================================
+   CONTENEDOR PRINCIPAL
+   ============================================ */
+.keypad-container {
+  max-width: 420px;
+  margin: 20px auto;
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+
+/* ============================================
+   CASILLAS DEL PIN
+   ============================================ */
+.pin-display {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.pin-box {
+  width: 58px;
+  height: 58px;
+  border: 3px solid #2c3e50;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: bold;
+  background: white;
+  color: #2c3e50;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+  transition: all 0.3s ease;
+}
+
+.pin-box.filled {
+  background: #e8f5e9;
+  border-color: #4caf50;
+  transform: scale(1.05);
+}
+
+/* ============================================
+   GRID DEL TECLADO
+   ============================================ */
+.keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 72px);
+  grid-gap: 12px;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+/* ============================================
+   BOTONES - ESTADO BASE
+   ============================================ */
+.keypad-grid > div {
+  width: 72px;
+  height: 72px;
+  border: 3px solid #34495e;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 700;
+  color: #2c3e50;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.5);
+  position: relative;
+  overflow: visible;
+}
+
+/* ============================================
+   EFECTO HOVER
+   ============================================ */
+.keypad-grid > div:hover:not(.empty):not(.disabled) {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.5);
+}
+
+/* ============================================
+   EFECTO PRESSED (al hacer click)
+   ============================================ */
+.keypad-grid > div:active:not(.empty):not(.disabled) {
+  transform: translateY(1px) scale(0.96);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2), inset 0 3px 8px rgba(0,0,0,0.2);
+  background: linear-gradient(135deg, #e0e0e0 0%, #d0d0d0 100%);
+}
+
+/* ============================================
+   BOTÓN SELECCIONADO (tachado + borde brillante)
+   ============================================ */
+.keypad-grid > div.selected {
+  background: linear-gradient(135deg, #e8e8e8 0%, #d5d5d5 100%);
+  border-color: #ff5722;
+  box-shadow: 
+    0 4px 8px rgba(0,0,0,0.15), 
+    inset 0 2px 6px rgba(0,0,0,0.15),
+    0 0 0 3px rgba(255, 87, 34, 0.3);
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+/* Animación de borde pulsante */
+@keyframes pulse-border {
+  0%, 100% {
+    box-shadow: 
+      0 4px 8px rgba(0,0,0,0.15), 
+      inset 0 2px 6px rgba(0,0,0,0.15),
+      0 0 0 3px rgba(255, 87, 34, 0.3);
+  }
+  50% {
+    box-shadow: 
+      0 4px 8px rgba(0,0,0,0.15), 
+      inset 0 2px 6px rgba(0,0,0,0.15),
+      0 0 0 3px rgba(255, 87, 34, 0.6);
+  }
+}
+
+/* ============================================
+   LÍNEA DIAGONAL DE TACHADO (pseudo-elemento)
+   ============================================ */
+.keypad-grid > div.selected::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom right,
+    transparent 0%,
+    transparent 46%,
+    rgba(244, 67, 54, 0.6) 46%,
+    rgba(244, 67, 54, 0.6) 54%,
+    transparent 54%,
+    transparent 100%
+  );
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  animation: strikethrough-appear 0.3s ease-out forwards;
+}
+
+/* Animación de aparición del tachado */
+@keyframes strikethrough-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.8) rotate(-5deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* ============================================
+   BOTONES VACÍOS (esquinas)
+   ============================================ */
+.keypad-grid > div.empty {
+  border: 2px dashed #ccc;
+  background: transparent;
+  cursor: default;
+  opacity: 0;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+/* ============================================
+   BOTONES DESHABILITADOS
+   ============================================ */
+.keypad-grid > div.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: #f5f5f5;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 480px) {
+  .keypad-container {
+    padding: 15px;
+  }
+  
+  .pin-box {
+    width: 50px;
+    height: 50px;
+    font-size: 28px;
+  }
+  
+  .keypad-grid {
+    grid-template-columns: repeat(4, 62px);
+    grid-gap: 10px;
+  }
+  
+  .keypad-grid > div {
+    width: 62px;
+    height: 62px;
+    font-size: 22px;
+  }
+}
+</style>
+
+<!-- ====================================================================
+     HTML DEL TECLADO
+     ==================================================================== -->
+<div class="keypad-container">
+  
+  <!-- Casillas para mostrar el PIN -->
+  <div class="pin-display" id="pin-display">
+    <div class="pin-box" id="box-0" data-col="0"></div>
+    <div class="pin-box" id="box-1" data-col="1"></div>
+    <div class="pin-box" id="box-2" data-col="2"></div>
+    <div class="pin-box" id="box-3" data-col="3"></div>
+  </div>
+
+  <!-- Grid del teclado (DIVs para evitar conversión a tabla) -->
+  <div class="keypad-grid" id="keypad-grid">
+    
+    <!-- Columna 0 | Columna 1 | Columna 2 | Columna 3 -->
+    
+    <!-- Fila 1: vacío, /, /, vacío -->
+    <div class="empty" data-col="0"></div>
+    <div data-value="/" data-col="1">/</div>
+    <div data-value="/" data-col="2">/</div>
+    <div class="empty" data-col="3"></div>
+
+    <!-- Fila 2: ., ., ., . -->
+    <div data-value="." data-col="0">.</div>
+    <div data-value="." data-col="1">.</div>
+    <div data-value="." data-col="2">.</div>
+    <div data-value="." data-col="3">.</div>
+
+    <!-- Fila 3: vacío, 0, 0, 0 (sin backspace) -->
+    <div class="empty" data-col="0"></div>
+    <div data-value="0" data-col="1">0</div>
+    <div data-value="0" data-col="2">0</div>
+    <div data-value="0" data-col="3">0</div>
+
+    <!-- Números 1-9 (4 columnas cada fila) -->
+    <div data-value="1" data-col="0">1</div>
+    <div data-value="1" data-col="1">1</div>
+    <div data-value="1" data-col="2">1</div>
+    <div data-value="1" data-col="3">1</div>
+
+    <div data-value="2" data-col="0">2</div>
+    <div data-value="2" data-col="1">2</div>
+    <div data-value="2" data-col="2">2</div>
+    <div data-value="2" data-col="3">2</div>
+
+    <div data-value="3" data-col="0">3</div>
+    <div data-value="3" data-col="1">3</div>
+    <div data-value="3" data-col="2">3</div>
+    <div data-value="3" data-col="3">3</div>
+
+    <div data-value="4" data-col="0">4</div>
+    <div data-value="4" data-col="1">4</div>
+    <div data-value="4" data-col="2">4</div>
+    <div data-value="4" data-col="3">4</div>
+
+    <div data-value="5" data-col="0">5</div>
+    <div data-value="5" data-col="1">5</div>
+    <div data-value="5" data-col="2">5</div>
+    <div data-value="5" data-col="3">5</div>
+
+    <div data-value="6" data-col="0">6</div>
+    <div data-value="6" data-col="1">6</div>
+    <div data-value="6" data-col="2">6</div>
+    <div data-value="6" data-col="3">6</div>
+
+    <div data-value="7" data-col="0">7</div>
+    <div data-value="7" data-col="1">7</div>
+    <div data-value="7" data-col="2">7</div>
+    <div data-value="7" data-col="3">7</div>
+
+    <div data-value="8" data-col="0">8</div>
+    <div data-value="8" data-col="1">8</div>
+    <div data-value="8" data-col="2">8</div>
+    <div data-value="8" data-col="3">8</div>
+
+    <div data-value="9" data-col="0">9</div>
+    <div data-value="9" data-col="1">9</div>
+    <div data-value="9" data-col="2">9</div>
+    <div data-value="9" data-col="3">9</div>
+  </div>
+</div>
+
+<!-- Campo oculto para Moodle -->
+<input type="hidden" id="keypad-hidden-input" value="">
+
+<script>
+(function() {
+  'use strict';
+  
+  // ====================================================================
+  // VARIABLES GLOBALES
+  // ====================================================================
+  
+  // Almacena el valor de cada columna (índice 0-3)
+  const columnValues = ['', '', '', ''];
+  
+  // Almacena el botón seleccionado de cada columna
+  const selectedButtons = [null, null, null, null];
+  
+  // Elementos DOM
+  const boxes = [
+    document.getElementById('box-0'),
+    document.getElementById('box-1'),
+    document.getElementById('box-2'),
+    document.getElementById('box-3')
+  ];
+  const hiddenInput = document.getElementById('keypad-hidden-input');
+  const keypadGrid = document.getElementById('keypad-grid');
+  
+  // ====================================================================
+  // FUNCIÓN: Actualizar visualización
+  // ====================================================================
+  function updateDisplay() {
+    // Actualizar casillas visuales
+    boxes.forEach(function(box, index) {
+      if (box) {
+        box.textContent = columnValues[index] || '';
+        
+        // Agregar clase "filled" si tiene valor
+        if (columnValues[index]) {
+          box.classList.add('filled');
+        } else {
+          box.classList.remove('filled');
+        }
+      }
+    });
+    
+    // ARREGLO: Filtrar solo valores no vacíos (sin espacios)
+    const currentValue = columnValues.filter(function(val) {
+      return val !== '';
+    }).join('');
+    
+    // Actualizar campo oculto
+    if (hiddenInput) {
+      hiddenInput.value = currentValue;
+    }
+    
+    // Actualizar campo de Moodle
+    const moodleField = document.querySelector('input[name*="answer"]:not(#keypad-hidden-input)');
+    if (moodleField) {
+      moodleField.value = currentValue;
+    }
+    
+    console.log('Columnas:', columnValues);
+    console.log('PIN (sin espacios):', currentValue);
+  }
+  
+  // ====================================================================
+  // FUNCIÓN: Manejar click en botón
+  // ====================================================================
+  function handleClick(event) {
+    const target = event.target;
+    
+    // Ignorar clicks en botones vacíos o deshabilitados
+    if (target.classList.contains('empty') || 
+        target.classList.contains('disabled') ||
+        !target.hasAttribute('data-col')) {
+      return;
+    }
+    
+    const column = parseInt(target.getAttribute('data-col'));
+    const value = target.getAttribute('data-value');
+    
+    console.log('Click en columna:', column, 'valor:', value);
+    
+    // ====================================================================
+    // LÓGICA: Sobrescritura o Borrado
+    // ====================================================================
+    
+    // Si ya hay un valor en esta columna Y es el mismo botón
+    if (columnValues[column] === value && selectedButtons[column] === target) {
+      // BORRAR
+      columnValues[column] = '';
+      
+      // Quitar clase "selected" del botón
+      if (selectedButtons[column]) {
+        selectedButtons[column].classList.remove('selected');
+      }
+      selectedButtons[column] = null;
+      
+      console.log('→ Borrado en columna', column);
+      
+    } else {
+      // ESCRIBIR o SOBRESCRIBIR
+      
+      // Quitar selección del botón anterior de esta columna
+      if (selectedButtons[column]) {
+        selectedButtons[column].classList.remove('selected');
+      }
+      
+      // Establecer nuevo valor
+      columnValues[column] = value;
+      selectedButtons[column] = target;
+      
+      // Agregar clase "selected" al nuevo botón
+      target.classList.add('selected');
+      
+      console.log('→ Escrito/Sobrescrito en columna', column, ':', value);
+    }
+    
+    // Actualizar display
+    updateDisplay();
+  }
+  
+  // ====================================================================
+  // FUNCIÓN: Ocultar campos de Moodle
+  // ====================================================================
+  function hideMoodleFields() {
+    const selectors = [
+      '.que.shortanswer .answer',
+      '.que .answer input[type="text"]',
+      'input[name*="answer"]:not(#keypad-hidden-input)',
+      '.ablock'
+    ];
+    
+    selectors.forEach(function(selector) {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(function(el) {
+        el.style.display = 'none';
+        el.style.visibility = 'hidden';
+        el.style.height = '0';
+      });
+    });
+  }
+  
+  // ====================================================================
+  // INICIALIZACIÓN
+  // ====================================================================
+  function init() {
+    console.log('🚀 Teclado numérico profesional inicializado');
+    
+    if (!keypadGrid) {
+      console.error('❌ Keypad grid no encontrado');
+      return;
+    }
+    
+    // Event listeners
+    keypadGrid.addEventListener('click', handleClick);
+    keypadGrid.addEventListener('touchstart', handleClick, { passive: true });
+    
+    // Ocultar campos de Moodle
+    hideMoodleFields();
+    setTimeout(hideMoodleFields, 500);
+    setInterval(hideMoodleFields, 3000);
+    
+    console.log('✅ Sistema listo - Lógica por COLUMNAS activada');
+    console.log('📋 Instrucciones:');
+    console.log('   - Click en cualquier botón de una columna → escribe en esa casilla');
+    console.log('   - Click en el mismo botón otra vez → borra');
+    console.log('   - Click en otro botón de la misma columna → sobrescribe');
+  }
+  
+  // Ejecutar cuando el DOM esté listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  
+})();
+</script>
